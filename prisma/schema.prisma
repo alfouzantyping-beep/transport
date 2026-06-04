@@ -1,0 +1,271 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model CompanyProfile {
+  id      Int     @id @default(1)
+  name    String
+  license String
+  trn     String
+  address String
+  phone   String
+  email   String
+  logoUrl String?
+}
+
+enum Role {
+  ADMIN
+  ACCOUNTANT
+  OPERATIONS
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // Hashed
+  email     String   @unique
+  role      Role     @default(OPERATIONS)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  closedTrips TripClosing[]
+}
+
+model Customer {
+  id            String    @id @default(uuid())
+  name          String
+  contactPerson String
+  trn           String
+  paymentTerms  String    // e.g. "Net 30", "COD"
+  phone         String
+  email         String
+  address       String
+  createdAt     DateTime  @default(now())
+  
+  trips         Trip[]
+  payments      Payment[]
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ACTIVE
+  OFF_DUTY
+}
+
+model Driver {
+  id             String       @id @default(uuid())
+  name           String
+  mobile         String
+  passport       String
+  emiratesId     String
+  license        String
+  salary         Float
+  advanceBalance Float        @default(0.00)
+  visaBalance    Float        @default(0.00)
+  status         DriverStatus @default(AVAILABLE)
+  createdAt      DateTime     @default(now())
+  
+  trucks         Truck[]
+  trips          Trip[]
+  salaries       Salary[]
+}
+
+enum TruckStatus {
+  AVAILABLE
+  IN_TRIP
+  MAINTENANCE
+}
+
+model Truck {
+  id                 String             @id @default(uuid())
+  truckNumber        String             @unique
+  plateNumber        String
+  trailerNumber      String
+  type               String             // e.g. "Flatbed", "Chiller", "Tanker"
+  registrationExpiry DateTime
+  insuranceExpiry    DateTime
+  status             TruckStatus        @default(AVAILABLE)
+  assignedDriverId   String?
+  assignedDriver     Driver?            @relation(fields: [assignedDriverId], references: [id])
+  createdAt          DateTime           @default(now())
+  
+  trips              Trip[]
+  maintenances       TruckMaintenance[]
+}
+
+enum TripStatus {
+  LOADING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+model Trip {
+  id            String       @id @default(uuid())
+  tripNumber    String       @unique
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  driverId      String
+  driver        Driver       @relation(fields: [driverId], references: [id])
+  truckId       String
+  truck         Truck        @relation(fields: [truckId], references: [id])
+  fromCountry   String       // UAE, Saudi Arabia, Qatar, Oman, Kuwait
+  toCountry     String
+  loadingPoint  String
+  deliveryPoint String
+  doNumber      String
+  cargoType     String
+  tripAmount    Float
+  status        TripStatus   @default(LOADING)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  driverCash    DriverCash[]
+  expenses      TripExpense[]
+  closing       TripClosing?
+  invoice       Invoice?
+}
+
+enum CashMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+}
+
+model DriverCash {
+  id            String     @id @default(uuid())
+  tripId        String
+  trip          Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  amount        Float
+  date          DateTime
+  paymentMethod CashMethod @default(CASH)
+  notes         String?
+  createdAt     DateTime   @default(now())
+}
+
+model TripExpense {
+  id          String   @id @default(uuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  diesel      Float    @default(0.00)
+  petrol      Float    @default(0.00)
+  toll        Float    @default(0.00)
+  border      Float    @default(0.00)
+  visa        Float    @default(0.00)
+  customs     Float    @default(0.00)
+  food        Float    @default(0.00)
+  parking     Float    @default(0.00)
+  maintenance Float    @default(0.00)
+  hotel       Float    @default(0.00)
+  other       Float    @default(0.00)
+  
+  // Custom columns for automated Excel Petty Cash Ledger
+  qatarVisa    Float    @default(0.00)
+  qatarToll    Float    @default(0.00) // represents Qatar Insurance
+  ksaVisa      Float    @default(0.00)
+  uaeCustoms   Float    @default(0.00)
+  ksaCustoms   Float    @default(0.00)
+  mezan        Float    @default(0.00)
+  jordanBorder Float    @default(0.00)
+  cameraFine   Float    @default(0.00) // represents Camera X
+  hayaPeshgi   Float    @default(0.00) // represents Haya/Peshgi
+  gatePass     Float    @default(0.00)
+
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model TripClosing {
+  id               String   @id @default(uuid())
+  tripId           String   @unique
+  trip             Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  totalCashGiven   Float
+  totalExpenses    Float
+  remainingBalance Float    // Cash given - Expenses
+  extraPayable     Float    // If expenses > cash
+  closedDate       DateTime @default(now())
+  closedById       String
+  closedBy         User     @relation(fields: [closedById], references: [id])
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  tripId        String        @unique
+  trip          Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  invoiceDate   DateTime
+  dueDate       DateTime
+  amount        Float
+  vatAmount     Float         @default(0.00)
+  totalAmount   Float
+  paidAmount    Float         @default(0.00)
+  pendingAmount Float
+  status        InvoiceStatus @default(UNPAID)
+  createdAt     DateTime      @default(now())
+
+  payments      Payment[]
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String   // Cheque, Wire Transfer, Cash
+  referenceNumber String?  // Cheque # or Txn ID
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+model TruckMaintenance {
+  id           String   @id @default(uuid())
+  truckId      String
+  truck        Truck    @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  date         DateTime
+  oilChange    Float    @default(0.00)
+  tyre         Float    @default(0.00)
+  battery      Float    @default(0.00)
+  engineRepair Float    @default(0.00)
+  brakeRepair  Float    @default(0.00)
+  service      Float    @default(0.00)
+  passing      Float    @default(0.00)
+  insurance    Float    @default(0.00)
+  amount       Float    // Auto calculated sum of above
+  workshop     String
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+model Salary {
+  id               String   @id @default(uuid())
+  driverId         String
+  driver           Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  month            Int      // 1 to 12
+  year             Int
+  baseSalary       Float
+  advanceDeduction Float    @default(0.00)
+  fineDeduction    Float    @default(0.00)
+  visaDeduction    Float    @default(0.00)
+  roomDeduction    Float    @default(0.00)
+  netSalary        Float    // base - deductions
+  paymentDate      DateTime
+  notes            String?
+  createdAt        DateTime @default(now())
+}
