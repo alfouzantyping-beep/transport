@@ -15,7 +15,8 @@ export async function comparePassword(password: string, hashed: string): Promise
 
 export interface UserSession {
   userId: string;
-  username: string;
+  name: string;
+  email: string;
   role: string;
 }
 

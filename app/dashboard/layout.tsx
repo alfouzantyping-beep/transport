@@ -21,14 +21,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="flex min-h-screen bg-[#f3f6f8] text-slate-900 font-sans">
       {/* Sidebar - fixed and desktop visible */}
-      <Sidebar userRole={session.role} username={session.username} />
+      <Sidebar userRole={session.role} username={session.name} />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col md:pl-0 min-h-screen">
+      <div className="flex min-h-screen flex-1 flex-col md:pl-0">
         <Navbar />
-        <main className="flex-1 p-6 md:p-8 bg-slate-50 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-[#f3f6f8] p-4 sm:p-6 lg:p-7">
           {children}
         </main>
       </div>

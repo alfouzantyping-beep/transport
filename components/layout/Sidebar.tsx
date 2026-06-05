@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -21,7 +21,9 @@ import {
   UserCheck,
   Fuel,
   Wrench,
-  UserCog
+  UserCog,
+  Tags,
+  BarChart3
 } from "lucide-react";
 
 interface MenuItem {
@@ -37,11 +39,29 @@ interface SidebarProps {
   username?: string;
 }
 
-export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: SidebarProps) {
+export default function Sidebar({ userRole = "Admin", username = "Admin" }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string | null>("Operations");
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    const activeSection = menuItems.find((item) =>
+      item.submenu?.some(
+        (sub) => pathname === sub.href || pathname.startsWith(sub.href + "/")
+      )
+    );
+    if (activeSection) {
+      setExpandedSection(activeSection.title);
+    } else {
+      const matchesTopLevel = menuItems.some(
+        (item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/"))
+      );
+      if (matchesTopLevel) {
+        setExpandedSection(null);
+      }
+    }
+  }, [pathname]);
 
   const toggleSection = (title: string) => {
     setExpandedSection(expandedSection === title ? null : title);
@@ -67,37 +87,40 @@ export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: Side
       title: "Master Data",
       icon: Database,
       submenu: [
-        { title: "Customers", href: "/dashboard/customers", icon: Users },
-        { title: "Drivers", href: "/dashboard/drivers", icon: UserCheck },
-        { title: "Trucks", href: "/dashboard/trucks", icon: Truck },
+        { title: "Customers", href: "/customers", icon: Users },
+        { title: "Drivers", href: "/drivers", icon: UserCheck },
+        { title: "Vehicles", href: "/vehicles", icon: Truck },
+        { title: "Expense Categories", href: "/expense-categories", icon: Tags },
       ],
     },
     {
       title: "Operations",
       icon: Navigation,
       submenu: [
-        { title: "Trips Log", href: "/dashboard/trips", icon: Navigation },
-        { title: "Driver Cash", href: "/dashboard/driver-cash", icon: DollarSign },
-        { title: "Trip Expenses", href: "/dashboard/trip-expenses", icon: Fuel },
-        { title: "Trip Closing", href: "/dashboard/trip-closing", icon: FileText },
-        { title: "Driver Ledger", href: "/dashboard/driver-ledger", icon: FileSpreadsheet },
+        { title: "Trips", href: "/trips", icon: Navigation },
+        { title: "Driver Cash", href: "/driver-cash", icon: DollarSign },
+        { title: "Trip Expenses", href: "/trip-expenses", icon: Fuel },
+        { title: "Trip Settlement", href: "/trip-settlements", icon: FileText },
       ],
     },
     {
       title: "Finance",
       icon: Landmark,
-      roles: ["ADMIN", "ACCOUNTANT"],
+      roles: ["Admin", "Accountant"],
       submenu: [
         { title: "Invoices", href: "/dashboard/invoices", icon: Receipt },
         { title: "Payments", href: "/dashboard/payments", icon: DollarSign },
+        { title: "Customer Outstanding", href: "/coming-soon?module=Customer%20Outstanding", icon: FileText },
         { title: "Driver Salary", href: "/dashboard/salaries", icon: UserCog },
       ],
     },
     {
-      title: "Truck Management",
+      title: "Fleet Management",
       icon: Wrench,
       submenu: [
-        { title: "Truck Maintenance", href: "/dashboard/truck-maintenance", icon: Wrench },
+        { title: "Maintenance", href: "/dashboard/truck-maintenance", icon: Wrench },
+        { title: "Vehicle Expenses", href: "/coming-soon?module=Vehicle%20Expenses", icon: Fuel },
+        { title: "Truck Profit", href: "/coming-soon?module=Truck%20Profit", icon: BarChart3 },
       ],
     },
     {
@@ -107,15 +130,26 @@ export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: Side
     },
     {
       title: "Reports",
-      href: "/dashboard/reports",
       icon: FileText,
-      roles: ["ADMIN", "ACCOUNTANT"],
+      roles: ["Admin", "Accountant"],
+      submenu: [
+        { title: "Trip Profit", href: "/coming-soon?module=Trip%20Profit", icon: BarChart3 },
+        { title: "Driver Cash", href: "/dashboard/driver-cash", icon: DollarSign },
+        { title: "Driver Salary", href: "/dashboard/salaries", icon: UserCog },
+        { title: "Truck Profit", href: "/coming-soon?module=Truck%20Profit", icon: Truck },
+        { title: "Customer Outstanding", href: "/coming-soon?module=Customer%20Outstanding", icon: Users },
+        { title: "Monthly P&L", href: "/coming-soon?module=Monthly%20P%26L", icon: BarChart3 },
+      ],
     },
     {
       title: "Settings",
-      href: "/dashboard/settings",
       icon: Settings,
-      roles: ["ADMIN"],
+      roles: ["Admin"],
+      submenu: [
+        { title: "Company", href: "/settings/company", icon: Landmark },
+        { title: "Users", href: "/coming-soon?module=Users", icon: Users },
+        { title: "Roles", href: "/coming-soon?module=Roles", icon: UserCog },
+      ],
     },
   ];
 
@@ -133,98 +167,119 @@ export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: Side
   return (
     <>
       {/* Mobile Toggle Button */}
-      <div className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:hidden text-slate-800">
+      <div className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 text-slate-800 md:hidden shadow-sm">
         <div className="flex items-center gap-2">
-          <Landmark className="h-6 w-6 text-emerald-600" />
-          <span className="font-bold text-lg">GCC Transport ERP</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-[0_4px_12px_rgba(16,185,129,0.2)]">
+            <Landmark className="h-5 w-5 text-white" />
+          </div>
+          <span className="font-bold text-lg text-slate-800 tracking-tight">GCC Transport ERP</span>
         </div>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus:outline-none"
+          className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none"
         >
           <Menu className="h-6 w-6" />
         </button>
       </div>
 
-      {/* Sidebar Panel */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform border-r border-slate-200 bg-white px-4 py-6 transition-transform duration-300 md:translate-x-0 flex flex-col justify-between ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 transform flex-col justify-between border-r border-slate-200/80 bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0] px-4 py-5 shadow-[8px_0_24px_-12px_rgba(0,0,0,0.08)] transition-transform duration-300 md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full md:relative animate-none"
         }`}
       >
-        <div className="space-y-6 flex-1 flex flex-col min-h-0">
-          {/* Logo Header */}
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col space-y-6">
+          {/* Logo Area */}
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200/60 bg-white px-3 py-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-[0_4px_15px_rgba(16,185,129,0.25),inset_0_2px_2px_rgba(255,255,255,0.2)]">
               <Landmark className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-md font-bold text-slate-900 leading-tight">GCC LOGISTICS</h1>
-              <span className="text-[10px] uppercase font-extrabold tracking-widest text-emerald-600">
+              <h1 className="text-sm font-black leading-tight text-slate-800 tracking-wide">GCC LOGISTICS</h1>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 drop-shadow-[0_0_4px_rgba(16,185,129,0.1)]">
                 Transport ERP
               </span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 space-y-1.5 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-200">
+          <nav className="flex-1 space-y-2.5 overflow-y-auto pr-1">
             {visibleMenuItems.map((item, idx) => {
               const isSubmenuExpanded = expandedSection === item.title;
               const hasSubmenu = !!item.submenu;
-              const isItemActive = item.href ? pathname === item.href : false;
+              const isItemActive = item.href ? pathname === item.href : item.submenu?.some((sub) => pathname === sub.href);
 
               return (
                 <div key={idx} className="space-y-1">
                   {hasSubmenu ? (
                     <button
                       onClick={() => toggleSection(item.title)}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition cursor-pointer ${
+                      className={`flex w-full cursor-pointer items-center justify-between rounded-xl px-3.5 py-3 text-xs font-bold transition-all duration-300 hover:translate-x-0.5 ${
                         isSubmenuExpanded
-                          ? "bg-slate-100 text-slate-900"
-                          : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-white text-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-slate-200/80"
+                          : "text-slate-600 hover:bg-white/50 hover:text-slate-800 hover:shadow-sm"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <item.icon className={`h-5 w-5 ${isSubmenuExpanded ? "text-emerald-600" : "text-slate-450"}`} />
-                        <span>{item.title}</span>
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition duration-300 ${
+                            isSubmenuExpanded
+                              ? "bg-gradient-to-br from-emerald-50 to-teal-50/50 text-emerald-600 border border-emerald-100 shadow-sm"
+                              : "bg-white text-slate-400 border border-slate-200/60 shadow-sm"
+                          }`}
+                        >
+                          <item.icon className="h-4.5 w-4.5" />
+                        </div>
+                        <span className="tracking-wide">{item.title}</span>
                       </div>
                       <ChevronDown
-                        className={`h-4 w-4 transition-transform duration-200 ${
-                          isSubmenuExpanded ? "rotate-180 text-emerald-600" : "text-slate-450"
+                        className={`h-4 w-4 transition-transform duration-300 ${
+                          isSubmenuExpanded ? "rotate-180 text-emerald-600" : "text-slate-400"
                         }`}
                       />
                     </button>
                   ) : (
                     <Link
                       href={item.href || "#"}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-bold transition-all duration-300 hover:translate-x-1 ${
                         isItemActive
-                          ? "bg-emerald-50 text-emerald-600 border-l-2 border-emerald-600 pl-2.5"
-                          : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-gradient-to-r from-emerald-50/70 to-white/10 text-emerald-800 border-l-2 border-emerald-500 shadow-[inset_1px_0_0_rgba(255,255,255,0.4),0_4px_12px_rgba(16,185,129,0.05)]"
+                          : "text-slate-600 hover:bg-white/50 hover:text-slate-800"
                       }`}
                     >
-                      <item.icon className={`h-5 w-5 ${isItemActive ? "text-emerald-600" : "text-slate-450"}`} />
-                      <span>{item.title}</span>
+                      <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition duration-300 ${
+                          isItemActive
+                            ? "bg-gradient-to-br from-emerald-500/10 to-teal-500/5 text-emerald-600"
+                            : "bg-white text-slate-400 border border-slate-200/60 shadow-sm"
+                        }`}
+                      >
+                        <item.icon className="h-4.5 w-4.5" />
+                      </div>
+                      <span className="tracking-wide">{item.title}</span>
                     </Link>
                   )}
 
                   {/* Submenu render */}
                   {hasSubmenu && isSubmenuExpanded && (
-                    <div className="mt-1 ml-4 pl-3 border-l border-slate-200 space-y-1">
+                    <div className="ml-4.5 mt-1.5 space-y-1 border-l border-slate-200/80 pl-3">
                       {item.submenu?.map((sub, subIdx) => {
                         const isSubActive = pathname === sub.href;
                         return (
                           <Link
                             key={subIdx}
                             href={sub.href}
-                            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-all duration-300 hover:translate-x-1 ${
                               isSubActive
-                                ? "bg-slate-100 text-emerald-600"
-                                : "text-slate-550 hover:bg-slate-50 hover:text-slate-900"
+                                ? "bg-gradient-to-r from-emerald-50/40 to-white/10 text-emerald-700 shadow-sm"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/30 hover:shadow-sm"
                             }`}
                           >
-                            <sub.icon className="h-4 w-4 text-slate-400" />
-                            <span>{sub.title}</span>
+                            <sub.icon
+                              className={`h-4 w-4 transition duration-300 ${
+                                isSubActive ? "text-emerald-600 drop-shadow-[0_0_4px_rgba(16,185,129,0.2)]" : "text-slate-400"
+                              }`}
+                            />
+                            <span className="tracking-wide">{sub.title}</span>
                           </Link>
                         );
                       })}
@@ -236,21 +291,21 @@ export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: Side
           </nav>
         </div>
 
-        {/* User Card & Logout */}
-        <div className="border-t border-slate-150 pt-4 mt-auto">
-          <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-150">
+        {/* Footer User Profile */}
+        <div className="mt-4 border-t border-slate-200/80 pt-4">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-3 shadow-[0_8px_20px_rgba(0,0,0,0.03)]">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-800">{username}</p>
-              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide">
+              <p className="truncate text-sm font-black text-slate-800 tracking-wide">{username}</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">
                 {userRole}
               </p>
             </div>
             <button
               onClick={handleLogout}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-red-600 transition cursor-pointer"
+              className="cursor-pointer rounded-xl p-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-rose-600 shadow-sm"
               title="Logout"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4.5 w-4.5" />
             </button>
           </div>
         </div>
@@ -260,7 +315,7 @@ export default function Sidebar({ userRole = "ADMIN", username = "Admin" }: Side
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/20 backdrop-blur-sm md:hidden"
         ></div>
       )}
     </>

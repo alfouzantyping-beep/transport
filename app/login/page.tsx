@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, User, Lock, Loader2, Landmark } from "lucide-react";
+import { KeyRound, Mail, Lock, Loader2, Landmark } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +20,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -39,14 +39,14 @@ export default function LoginPage() {
 
   const fillCredentials = (role: string) => {
     if (role === "admin") {
-      setUsername("admin");
-      setPassword("admin123");
+      setEmail("admin@transport.com");
+      setPassword("admin123456");
     } else if (role === "accountant") {
-      setUsername("accountant");
-      setPassword("accountant123");
+      setEmail("accountant@transport.com");
+      setPassword("accountant123456");
     } else if (role === "operations") {
-      setUsername("operations");
-      setPassword("operations123");
+      setEmail("operations@transport.com");
+      setPassword("operations123456");
     }
   };
 
@@ -79,19 +79,19 @@ export default function LoginPage() {
           <div className="space-y-4 rounded-md">
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Username
+                Email
               </label>
               <div className="relative mt-1">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <User className="h-5 w-5 text-slate-400" />
+                  <Mail className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-250 bg-white py-3 pl-10 pr-3 text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 sm:text-sm font-medium"
-                  placeholder="admin, accountant..."
+                  placeholder="admin@transport.com"
                 />
               </div>
             </div>

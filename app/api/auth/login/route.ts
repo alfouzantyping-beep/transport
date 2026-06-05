@@ -4,54 +4,52 @@ import { comparePassword, signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json();
+    const { email, password } = await req.json();
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    // Find user in database
     const user = await prisma.user.findUnique({
-      where: { username },
+      where: { email },
+      include: { roleRef: true },
     });
 
-    if (!user) {
+    if (!user || user.status !== "ACTIVE") {
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Check password
-    const isPasswordValid = await comparePassword(password, user.password);
+    const isPasswordValid = await comparePassword(password, user.passwordHash || user.password);
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Sign session token
     const token = signToken({
       userId: user.id,
-      username: user.username,
-      role: user.role,
+      name: user.name || user.username,
+      email: user.email,
+      role: user.roleRef?.name || user.role,
     });
 
-    // Create response
     const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
-        username: user.username,
-        role: user.role,
+        name: user.name || user.username,
+        email: user.email,
+        role: user.roleRef?.name || user.role,
       },
     });
 
-    // Set auth cookie
     response.cookies.set("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
