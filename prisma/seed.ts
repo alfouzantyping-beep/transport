@@ -17,7 +17,7 @@ async function main() {
   console.log("Resetting and seeding Transport ERP data...");
   await prisma.tripSettlement.deleteMany({});
   await prisma.driverCashAdvance.deleteMany({});
-  await prisma.salary.deleteMany({});
+  await prisma.driverMonthlySalary.deleteMany({});
   await prisma.truckMaintenance.deleteMany({});
   await prisma.payment.deleteMany({});
   await prisma.invoice.deleteMany({});

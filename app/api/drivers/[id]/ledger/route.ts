@@ -116,32 +116,29 @@ export async function GET(
       });
 
       // 4. Fetch all Salaries processed for this driver
-      const salaries = await prisma.salary.findMany({
+      const salaries = await prisma.driverMonthlySalary.findMany({
         where: { driverId: id },
-        orderBy: { paymentDate: "asc" },
+        orderBy: { createdAt: "asc" },
       });
 
       const salaryLedger = salaries.map((s) => {
-        const totalDeductions =
-          Number(s.advanceDeduction || 0) +
-          Number(s.fineDeduction || 0) +
-          Number(s.visaDeduction || 0) +
-          Number(s.roomDeduction || 0);
+        const [year, month] = s.salaryMonth.split("-").map(Number);
+        const totalDeductions = Number(s.totalDeduction);
 
         return {
           id: s.id,
-          date: s.paymentDate,
-          month: s.month,
-          year: s.year,
-          baseSalary: Number(s.baseSalary),
-          roomDeduction: Number(s.roomDeduction),
+          date: s.createdAt,
+          month,
+          year,
+          baseSalary: Number(s.basicSalary),
+          roomDeduction: Number(s.roomRentDeduction),
           advanceDeduction: Number(s.advanceDeduction),
-          fineDeduction: Number(s.fineDeduction),
+          fineDeduction: Number(s.trafficFineDeduction),
           visaDeduction: Number(s.visaDeduction),
           totalDeductions,
           netSalary: Number(s.netSalary),
           notes: s.notes || "",
-          status: "PAID",
+          status: s.status,
         };
       });
 

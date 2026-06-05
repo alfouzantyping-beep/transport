@@ -2,50 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
-let mockPayments = [
-  {
-    id: "pay-1",
-    customerId: "cust-3",
-    customerName: "Kuwait Petroleum Corporation",
-    invoiceId: "inv-1",
-    invoiceNumber: "INV-2026-1001",
-    amount: 13125.00,
-    paymentDate: "2026-05-30T00:00:00.000Z",
-    paymentMethod: "Bank Wire Transfer",
-    referenceNumber: "TXN-9988102",
-    notes: "Full payment settlement",
-  }
-];
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    try {
-      const payments = await prisma.payment.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
-          customer: { select: { name: true } },
-          invoice: { select: { invoiceNumber: true } },
-        }
-      });
+    const { searchParams } = new URL(req.url);
+    const customerId = searchParams.get("customerId");
+    const invoiceId = searchParams.get("invoiceId");
+    const search = searchParams.get("search");
 
-      const formatted = payments.map(p => ({
-        ...p,
-        amount: Number(p.amount),
-        customerName: p.customer?.name || "Unknown",
-        invoiceNumber: p.invoice?.invoiceNumber || "Unlinked",
-      }));
+    const whereClause: any = {};
 
-      return NextResponse.json({ live: true, data: formatted });
-    } catch (dbError) {
-      console.warn("Database connection failed, returning mock payments.");
-      return NextResponse.json({ live: false, data: mockPayments });
+    if (customerId) {
+      whereClause.customerId = customerId;
     }
-  } catch (error) {
+    if (invoiceId) {
+      whereClause.invoiceId = invoiceId;
+    }
+    if (search) {
+      whereClause.OR = [
+        { referenceNo: { contains: search } },
+        { customer: { name: { contains: search } } },
+        { invoice: { invoiceNumber: { contains: search } } }
+      ];
+    }
+
+    const payments = await prisma.payment.findMany({
+      where: whereClause,
+      orderBy: { paymentDate: "desc" },
+      include: {
+        customer: true,
+        invoice: true,
+      },
+    });
+
+    return NextResponse.json(payments);
+  } catch (error: any) {
+    console.error("GET Payments error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -58,78 +54,69 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { customerId, invoiceId, amount, paymentDate, paymentMethod, referenceNumber, notes } = body;
+    const { customerId, invoiceId, amount, paymentDate, paymentMethod, referenceNo, notes = "" } = body;
 
-    if (!customerId || !amount || !paymentDate || !paymentMethod) {
+    if (!customerId || amount === undefined || !paymentDate || !paymentMethod) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    try {
-      const payVal = parseFloat(amount);
+    const payVal = Number(amount);
+    if (isNaN(payVal) || payVal <= 0) {
+      return NextResponse.json({ error: "Amount must be a positive number" }, { status: 400 });
+    }
 
-      const payment = await prisma.payment.create({
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
         data: {
           customerId,
           invoiceId: invoiceId || null,
           amount: payVal,
           paymentDate: new Date(paymentDate),
           paymentMethod,
-          referenceNumber: referenceNumber || "",
-          notes: notes || "",
+          referenceNo: referenceNo || "",
+          notes,
         },
         include: {
-          customer: { select: { name: true } },
-          invoice: { select: { invoiceNumber: true } },
+          customer: true,
+          invoice: true
         }
       });
 
-      // Update the invoice paid amount if linked
       if (invoiceId) {
-        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-        if (invoice) {
-          const newPaid = Number(invoice.paidAmount) + payVal;
-          const newPending = Number(invoice.totalAmount) - newPaid;
-          const newStatus = newPending <= 0 ? "PAID" : newPaid > 0 ? "PARTIALLY_PAID" : "UNPAID";
+        const invoice = await tx.invoice.findUnique({
+          where: { id: invoiceId }
+        });
 
-          await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-              paidAmount: newPaid,
-              pendingAmount: newPending >= 0 ? newPending : 0,
-              status: newStatus,
-            }
-          });
+        if (!invoice) {
+          throw new Error("Invoice not found");
         }
+
+        const newPaid = Number(invoice.paidAmount) + payVal;
+        const newPending = Number(invoice.totalAmount) - newPaid;
+        let newStatus: "UNPAID" | "PARTIAL" | "PAID" = "UNPAID";
+
+        if (newPending <= 0) {
+          newStatus = "PAID";
+        } else if (newPaid > 0) {
+          newStatus = "PARTIAL";
+        }
+
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            paidAmount: newPaid,
+            pendingAmount: newPending >= 0 ? newPending : 0,
+            status: newStatus
+          }
+        });
       }
 
-      return NextResponse.json({
-        success: true,
-        live: true,
-        data: {
-          ...payment,
-          amount: Number(payment.amount),
-          customerName: payment.customer?.name || "Unknown",
-          invoiceNumber: payment.invoice?.invoiceNumber || "Unlinked",
-        }
-      });
-    } catch (dbError) {
-      console.warn("Database connection failed, logging mock payment.");
-      const mockNew = {
-        id: `pay-${Date.now()}`,
-        customerId,
-        customerName: "Mock Customer Ltd",
-        invoiceId: invoiceId || null,
-        invoiceNumber: "INV-MOCK-NUM",
-        amount: parseFloat(amount),
-        paymentDate: new Date(paymentDate).toISOString(),
-        paymentMethod,
-        referenceNumber,
-        notes,
-      };
-      mockPayments = [mockNew, ...mockPayments];
-      return NextResponse.json({ success: true, live: false, data: mockNew });
-    }
-  } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return payment;
+    });
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error("POST Payment error:", error);
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

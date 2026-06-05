@@ -76,6 +76,7 @@ export async function GET() {
           customer: { select: { name: true } },
           driver: { select: { name: true } },
           truck: { select: { truckNumber: true } },
+          invoice: { select: { id: true } }
         },
       });
 
@@ -85,6 +86,7 @@ export async function GET() {
         customerName: t.customer?.name || "Unknown",
         driverName: t.driver?.name || "Unknown",
         truckNumber: t.truck?.truckNumber || "Unknown",
+        hasInvoice: !!t.invoice,
       }));
 
       return NextResponse.json({ live: true, data: formatted });

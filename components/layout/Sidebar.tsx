@@ -23,7 +23,8 @@ import {
   Wrench,
   UserCog,
   Tags,
-  BarChart3
+  BarChart3,
+  BookOpen
 } from "lucide-react";
 
 interface MenuItem {
@@ -99,6 +100,7 @@ export default function Sidebar({ userRole = "Admin", username = "Admin" }: Side
       submenu: [
         { title: "Trips", href: "/trips", icon: Navigation },
         { title: "Driver Cash", href: "/driver-cash", icon: DollarSign },
+        { title: "Driver Ledger", href: "/driver-ledger", icon: BookOpen },
         { title: "Trip Expenses", href: "/trip-expenses", icon: Fuel },
         { title: "Trip Settlement", href: "/trip-settlements", icon: FileText },
       ],
@@ -108,25 +110,28 @@ export default function Sidebar({ userRole = "Admin", username = "Admin" }: Side
       icon: Landmark,
       roles: ["Admin", "Accountant"],
       submenu: [
-        { title: "Invoices", href: "/dashboard/invoices", icon: Receipt },
-        { title: "Payments", href: "/dashboard/payments", icon: DollarSign },
-        { title: "Customer Outstanding", href: "/coming-soon?module=Customer%20Outstanding", icon: FileText },
-        { title: "Driver Salary", href: "/dashboard/salaries", icon: UserCog },
+        { title: "Invoices", href: "/invoices", icon: Receipt },
+        { title: "Payments", href: "/payments", icon: DollarSign },
+        { title: "Customer Outstanding", href: "/customer-pending", icon: FileText },
+        { title: "Driver Salary", href: "/salaries", icon: UserCog },
       ],
     },
     {
       title: "Fleet Management",
       icon: Wrench,
       submenu: [
-        { title: "Maintenance", href: "/dashboard/truck-maintenance", icon: Wrench },
-        { title: "Vehicle Expenses", href: "/coming-soon?module=Vehicle%20Expenses", icon: Fuel },
-        { title: "Truck Profit", href: "/coming-soon?module=Truck%20Profit", icon: BarChart3 },
+        { title: "Maintenance", href: "/maintenance", icon: Wrench },
+        { title: "Vehicle Expenses", href: "/vehicle-expenses", icon: Fuel },
+        { title: "Truck Profit", href: "/truck-profit", icon: BarChart3 },
       ],
     },
     {
       title: "Data Import",
-      href: "/dashboard/import",
       icon: FileSpreadsheet,
+      submenu: [
+        { title: "Excel Import", href: "/import", icon: FileSpreadsheet },
+        { title: "Import Logs", href: "/import/logs", icon: FileText },
+      ],
     },
     {
       title: "Reports",
@@ -135,9 +140,9 @@ export default function Sidebar({ userRole = "Admin", username = "Admin" }: Side
       submenu: [
         { title: "Trip Profit", href: "/coming-soon?module=Trip%20Profit", icon: BarChart3 },
         { title: "Driver Cash", href: "/dashboard/driver-cash", icon: DollarSign },
-        { title: "Driver Salary", href: "/dashboard/salaries", icon: UserCog },
-        { title: "Truck Profit", href: "/coming-soon?module=Truck%20Profit", icon: Truck },
-        { title: "Customer Outstanding", href: "/coming-soon?module=Customer%20Outstanding", icon: Users },
+        { title: "Driver Salary", href: "/salaries", icon: UserCog },
+        { title: "Truck Profit", href: "/truck-profit", icon: Truck },
+        { title: "Customer Outstanding", href: "/customer-pending", icon: Users },
         { title: "Monthly P&L", href: "/coming-soon?module=Monthly%20P%26L", icon: BarChart3 },
       ],
     },

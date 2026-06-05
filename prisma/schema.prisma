@@ -69,6 +69,21 @@ enum SettlementStatus {
   SETTLED
 }
 
+enum ImportType {
+  TRIPS
+  DRIVER_CASH
+  SALARIES
+  MAINTENANCE
+  CUSTOMER_BALANCES
+}
+
+enum ImportStatus {
+  PENDING
+  VALIDATED
+  IMPORTED
+  FAILED
+}
+
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -94,6 +109,7 @@ model User {
 
   roleRef     Role?         @relation(fields: [roleId], references: [id])
   closedTrips TripClosing[]
+  importLogs  ImportLog[]
 }
 
 model Company {
@@ -141,6 +157,8 @@ model Customer {
 
   trips    Trip[]
   payments Payment[]
+  invoices Invoice[]
+  openingBalances CustomerOpeningBalance[]
 }
 
 model Driver {
@@ -165,7 +183,7 @@ model Driver {
   trucks   Truck[]
   vehicles Vehicle[]
   trips    Trip[]
-  salaries Salary[]
+  salaries DriverMonthlySalary[]
   cashAdvances DriverCashAdvance[]
   expenses TripExpense[]
   settlements TripSettlement[]
@@ -189,6 +207,8 @@ model Vehicle {
   currentDriver Driver? @relation(fields: [currentDriverId], references: [id])
   trips Trip[]
   expenses TripExpense[]
+  maintenances VehicleMaintenance[]
+  vehicleExpenses VehicleExpense[]
 }
 
 model ExpenseCategory {
@@ -201,6 +221,7 @@ model ExpenseCategory {
   updatedAt   DateTime            @updatedAt
 
   expenses TripExpense[]
+  vehicleExpenses VehicleExpense[]
 }
 
 model Truck {
@@ -380,38 +401,45 @@ model TripClosing {
 
 enum InvoiceStatus {
   UNPAID
-  PARTIALLY_PAID
+  PARTIAL
   PAID
+  CANCELLED
 }
 
 model Invoice {
   id            String        @id @default(uuid())
   invoiceNumber String        @unique
   tripId        String        @unique
+  customerId    String
   invoiceDate   DateTime
   dueDate       DateTime
-  amount        Float
+  subtotal      Float
+  vatRate       Float         @default(0)
   vatAmount     Float         @default(0)
   totalAmount   Float
   paidAmount    Float         @default(0)
   pendingAmount Float
   status        InvoiceStatus @default(UNPAID)
+  notes         String?
   createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customerId], references: [id])
   payments Payment[]
 }
 
 model Payment {
-  id              String   @id @default(uuid())
-  customerId      String
-  invoiceId       String?
-  amount          Float
-  paymentDate     DateTime
-  paymentMethod   String
-  referenceNumber String?
-  notes           String?
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  customerId    String
+  invoiceId     String?
+  amount        Float
+  paymentDate   DateTime
+  paymentMethod String
+  referenceNo   String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   customer Customer @relation(fields: [customerId], references: [id])
   invoice  Invoice? @relation(fields: [invoiceId], references: [id])
@@ -437,20 +465,99 @@ model TruckMaintenance {
   truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
 }
 
-model Salary {
-  id               String   @id @default(uuid())
-  driverId         String
-  month            Int
-  year             Int
-  baseSalary       Float
-  advanceDeduction Float    @default(0)
-  fineDeduction    Float    @default(0)
-  visaDeduction    Float    @default(0)
-  roomDeduction    Float    @default(0)
-  netSalary        Float
-  paymentDate      DateTime
-  notes            String?
-  createdAt        DateTime @default(now())
+model DriverMonthlySalary {
+  id                       String   @id @default(uuid())
+  driverId                 String
+  salaryMonth              String
+  basicSalary              Float
+  roomRentDeduction        Float    @default(0)
+  advanceDeduction         Float    @default(0)
+  trafficFineDeduction     Float    @default(0)
+  visaDeduction            Float    @default(0)
+  otherDeduction           Float    @default(0)
+  tripSettlementAdjustment Float    @default(0)
+  totalDeduction           Float    @default(0)
+  netSalary                Float
+  paidAmount               Float    @default(0)
+  balance                  Float    @default(0)
+  status                   String   @default("PENDING")
+  notes                    String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model VehicleMaintenance {
+  id              String   @id @default(uuid())
+  vehicleId       String
+  maintenanceDate DateTime
+  maintenanceType String
+  workshopName    String
+  amount          Float
+  odometer        Int?
+  nextServiceDate DateTime?
+  description     String?
+  invoiceImageUrl String?
+  status          String   @default("COMPLETED")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+}
+
+model VehicleExpense {
+  id                String   @id @default(uuid())
+  vehicleId         String
+  expenseCategoryId String
+  expenseDate       DateTime
+  amount            Float
+  description       String?
+  referenceNo       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id])
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id])
+}
+
+model ImportLog {
+  id           String       @id @default(uuid())
+  importType   ImportType
+  fileName     String
+  totalRows    Int          @default(0)
+  successRows  Int          @default(0)
+  failedRows   Int          @default(0)
+  status       ImportStatus @default(PENDING)
+  uploadedById String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  uploadedBy User?            @relation(fields: [uploadedById], references: [id])
+  rowErrors  ImportRowError[]
+}
+
+model ImportRowError {
+  id           String   @id @default(uuid())
+  importLogId  String
+  rowNumber    Int
+  errorMessage String
+  rawData      String
+  createdAt    DateTime @default(now())
+
+  importLog ImportLog @relation(fields: [importLogId], references: [id], onDelete: Cascade)
+}
+
+model CustomerOpeningBalance {
+  id             String   @id @default(uuid())
+  customerId     String
+  openingDate    DateTime @default(now())
+  totalAmount    Float    @default(0)
+  receivedAmount Float    @default(0)
+  pendingAmount  Float    @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
 }

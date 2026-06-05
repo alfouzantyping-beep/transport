@@ -81,7 +81,7 @@ export default async function DashboardPage() {
     prisma.tripExpense.findMany(),
     prisma.invoice.findMany({ select: { totalAmount: true, pendingAmount: true, status: true } }),
     prisma.truckMaintenance.findMany({ select: { amount: true } }),
-    prisma.salary.findMany({ select: { netSalary: true } }),
+    prisma.driverMonthlySalary.findMany({ select: { netSalary: true } }),
     prisma.trip.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
@@ -93,18 +93,18 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const tripRevenue = trips.reduce((total, trip) => total + Number(trip.tripAmount || 0), 0);
-  const invoicedRevenue = invoices.reduce((total, invoice) => total + Number(invoice.totalAmount || 0), 0);
+  const tripRevenue = trips.reduce((total: number, trip: { tripAmount: number; status: string }) => total + Number(trip.tripAmount || 0), 0);
+  const invoicedRevenue = invoices.reduce((total: number, invoice: { totalAmount: number; pendingAmount: number; status: string }) => total + Number(invoice.totalAmount || 0), 0);
   const totalRevenue = Math.max(tripRevenue, invoicedRevenue);
-  const tripCost = tripExpenses.reduce((total, row) => total + sumExpense(row), 0);
-  const maintenanceCost = maintenanceLogs.reduce((total, row) => total + Number(row.amount || 0), 0);
-  const salaryCost = salaries.reduce((total, row) => total + Number(row.netSalary || 0), 0);
+  const tripCost = tripExpenses.reduce((total: number, row: any) => total + sumExpense(row), 0);
+  const maintenanceCost = maintenanceLogs.reduce((total: number, row: { amount: number }) => total + Number(row.amount || 0), 0);
+  const salaryCost = salaries.reduce((total: number, row: { netSalary: number }) => total + Number(row.netSalary || 0), 0);
   const totalCost = tripCost + maintenanceCost + salaryCost;
   const netProfit = totalRevenue - totalCost;
   const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-  const activeTrips = trips.filter((trip) => trip.status === "LOADING" || trip.status === "IN_TRANSIT").length;
-  const deliveredTrips = trips.filter((trip) => trip.status === "DELIVERED").length;
-  const outstanding = invoices.reduce((total, invoice) => total + Number(invoice.pendingAmount || 0), 0);
+  const activeTrips = trips.filter((trip: { status: string }) => trip.status === "LOADING" || trip.status === "IN_TRANSIT").length;
+  const deliveredTrips = trips.filter((trip: { status: string }) => trip.status === "DELIVERED").length;
+  const outstanding = invoices.reduce((total: number, invoice: { pendingAmount: number }) => total + Number(invoice.pendingAmount || 0), 0);
   const fleetUtilization = totalVehicles > 0 ? ((totalVehicles - activeVehicles) / totalVehicles) * 100 : 0;
   const driverAvailability = totalDrivers > 0 ? (activeDrivers / totalDrivers) * 100 : 0;
 
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
     {
       label: "Outstanding",
       value: currency(outstanding),
-      note: `${invoices.filter((invoice) => invoice.status !== "PAID").length} unpaid invoices`,
+      note: `${invoices.filter((invoice: any) => invoice.status !== "PAID").length} unpaid invoices`,
       icon: ReceiptText,
       accent: "bg-amber-50 text-amber-700 ring-amber-100",
     },
@@ -305,7 +305,7 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/80">
-                {recentTrips.map((trip) => (
+                {recentTrips.map((trip: any) => (
                   <tr key={trip.id}>
                     <td className="p-3 text-xs font-black text-slate-800">{trip.tripNumber}</td>
                     <td className="p-3 text-xs font-bold text-slate-600 truncate max-w-[150px]">{trip.customer.companyName || trip.customer.name}</td>
